@@ -1,0 +1,21 @@
+{
+  "name": "food-agent-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "test": "node tests/check.mjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.3",
+    "vite": "^6.2.2",
+    "vue-tsc": "^2.2.8",
+    "typescript": "^5.7.3"
+  }
+}
