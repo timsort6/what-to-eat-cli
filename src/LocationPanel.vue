@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import AddressCreate from './AddressCreate.vue'
+import LocationSearch from './LocationSearch.vue'
 import { listAddresses } from './api'
 import { wgs84ToGcj02 } from './coordinates'
 import { ApiError, messageFrom, validLocation } from './protocol'
-import type { Address, LocationChoice } from './protocol'
+import type { Address, LocationChoice, SavableChoice } from './protocol'
 
 const props = defineProps<{ signal: AbortSignal }>()
 const emit = defineEmits<{ select: [location: LocationChoice | null]; expired: [] }>()
@@ -14,10 +16,62 @@ const locating = ref(false)
 const error = ref('')
 const geoError = ref('')
 let locationAttempt = 0
+const searchReset = ref(0)
 const currentLocation = computed(() => selection.value?.kind === 'coordinates' ? selection.value.location : '')
+const currentName = computed(() => selection.value?.kind === 'coordinates' ? selection.value.name : '')
+const currentAddress = computed(() => selection.value?.kind === 'coordinates' ? selection.value.address : '')
 
-async function load(): Promise<void> {
-  if (loading.value) return
+const creating = ref(false)
+const saveNotice = ref('')
+const createEntry = ref<HTMLButtonElement | null>(null)
+
+function stopLocating(): void {
+  locationAttempt++
+  locating.value = false
+  saveNotice.value = ''
+}
+
+function openCreate(): void {
+  saveNotice.value = ''
+  creating.value = true
+}
+
+async function closeCreate(): Promise<void> {
+  creating.value = false
+  await nextTick()
+  createEntry.value?.focus()
+}
+
+async function saved(address: Address, from: SavableChoice): Promise<void> {
+  creating.value = false
+  // 在途刷新可能早于写库读出旧列表，等它结束后再刷新一次，确保列表含新地址。
+  await loadTask
+  await load()
+  if (props.signal.aborted) return
+  // 保存或刷新期间若已切换位置，只刷新地址簿，不把旧请求结果当作当前选择。
+  const current = selection.value === from
+  if (current) choose(addresses.value.find((item) => item.id === address.id) ?? address)
+  saveNotice.value = current ? `已保存为地址「${address.label}」并选中` : `已保存地址「${address.label}」，当前位置已切换，选择保持不变`
+  await nextTick()
+  createEntry.value?.focus()
+}
+
+function chooseSearch(choice: Extract<LocationChoice, { kind: 'coordinates' }>): void {
+  stopLocating()
+  selection.value = choice
+  geoError.value = ''
+  emit('select', choice)
+}
+
+let loadTask: Promise<void> | null = null
+
+// 已有刷新在途时复用同一次请求。
+function load(): Promise<void> {
+  loadTask ??= readAddresses().finally(() => { loadTask = null })
+  return loadTask
+}
+
+async function readAddresses(): Promise<void> {
   error.value = ''
   loading.value = true
   try {
@@ -40,8 +94,8 @@ async function load(): Promise<void> {
 
 function choose(address: Address): void {
   if (!validLocation(address.location)) return
-  locationAttempt++
-  locating.value = false
+  stopLocating()
+  searchReset.value++
   selection.value = { kind: 'address', address }
   geoError.value = ''
   emit('select', selection.value)
@@ -49,8 +103,10 @@ function choose(address: Address): void {
 
 function locate(): void {
   if (locating.value) return
+  searchReset.value++
   const attempt = ++locationAttempt
   geoError.value = ''
+  saveNotice.value = ''
   if (!window.isSecureContext || !navigator.geolocation) {
     geoError.value = '定位需要 HTTPS 或 localhost。请从下方地址簿选择，或用安全地址重新打开页面。'
     return
@@ -75,13 +131,14 @@ function locate(): void {
 }
 
 onMounted(load)
+onUnmounted(stopLocating)
 </script>
 
 <template>
   <aside class="sidebar" aria-label="推荐位置">
     <div class="section-heading"><div><p class="eyebrow">第一步</p><h2>你在哪里？</h2></div><span class="step-number">01</span></div>
     <button class="location-button" type="button" :disabled="locating" @click="locate">{{ locating ? '正在获取位置…' : '获取当前位置' }}</button>
-    <p v-if="currentLocation" class="location-confirm" role="status">已使用当前位置<br /><small>{{ currentLocation }}</small></p>
+    <p v-if="currentLocation" class="location-confirm" role="status">{{ currentName ? `已使用：${currentName}` : '已使用当前位置' }}<br /><small v-if="currentAddress">{{ currentAddress }}<br /></small><small>{{ currentLocation }}</small></p>
     <p v-if="geoError" class="message error-message content-message" role="alert">{{ geoError }}</p>
     <div class="divider"><span>或从地址簿选择</span></div>
     <p v-if="loading" class="message" role="status">正在读取地址簿…</p>
@@ -93,7 +150,18 @@ onMounted(load)
         <span v-if="selection?.kind === 'address' && selection.address.id === address.id" class="checkmark" aria-label="已选择">✓</span>
       </button>
     </div>
-    <div v-else class="empty-state"><p>还没有保存的地址</p><small>请获取当前位置，或先在已有客户端保存地址后刷新。</small><button type="button" class="button button-quiet" @click="load">刷新地址簿</button></div>
+    <div v-else class="empty-state"><p>还没有保存的地址</p><small>获取当前位置或搜索确认地点后，可保存为地址。</small><button v-if="!creating" ref="createEntry" type="button" class="button create-entry" @click="openCreate">＋ 保存为地址</button><button type="button" class="button button-quiet" @click="load">刷新地址簿</button></div>
+    <button v-if="!loading && !error && addresses.length && !creating" ref="createEntry" type="button" class="button create-entry" @click="openCreate">＋ 保存为地址</button>
+    <AddressCreate v-if="creating" :signal="signal" :choice="selection" @saved="saved" @cancel="closeCreate" @expired="emit('expired')" />
+    <p v-if="saveNotice" class="form-note save-notice" role="status">{{ saveNotice }}</p>
+    <LocationSearch :signal="signal" :reset-key="searchReset" @editing="stopLocating" @select="chooseSearch" @expired="emit('expired')" />
     <p class="sidebar-footer">选择的位置仅用于推荐</p>
   </aside>
 </template>
+
+<style scoped>
+.create-entry { margin-top: var(--space-2); border: 1px solid var(--border-default); color: var(--accent-primary); background: var(--surface-secondary); }
+.create-entry:hover:not(:disabled) { background: var(--accent-surface); }
+.empty-state .create-entry { margin-top: 0; }
+.save-notice { margin-top: var(--space-3); color: var(--status-success); }
+</style>

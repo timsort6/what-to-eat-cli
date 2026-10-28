@@ -35,13 +35,19 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; min-height: 100dvh; color: var(--text-primary); background: var(--surface-primary); line-height: 1.6; }
+/* 视口与侧栏滚动聚焦/scrollIntoView 时留出焦点环（3px+3px）空间。 */
+html { scroll-padding-block: var(--space-3); }
+body { margin: 0; min-width: 320px; min-height: 100dvh; color: var(--text-primary); background: var(--surface-primary); font-size: var(--text-base); line-height: 1.6; }
 button, input, textarea { font: inherit; }
 button { cursor: pointer; }
-button:disabled { cursor: not-allowed; opacity: .6; }
+/* 禁用态只换颜色 token、不降透明度：文字与底色对比度保持 ≥4.5:1。 */
+button:disabled { cursor: not-allowed; color: var(--text-secondary); }
 button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
 button:active:not(:disabled) { transform: translateY(1px); }
 p, h1, h2, h3, small, strong { overflow-wrap: anywhere; }
+p, li { text-wrap: pretty; }
+/* 短语整体换行：能放进一行时不从中间拆开，超过整行宽度时才在内部折行（不会横向溢出）。 */
+.keep-together { display: inline-block; max-width: 100%; }
 .app-shell { min-height: 100dvh; max-width: 1180px; margin: 0 auto; padding: var(--space-8) var(--space-8) var(--space-12); }
 .topbar { display: flex; align-items: center; gap: var(--space-3); padding-bottom: var(--space-6); border-bottom: 1px solid var(--border-default); }
 .brand-mark { display: grid; place-items: center; flex: 0 0 44px; height: 44px; border-radius: var(--radius-md); color: var(--surface-secondary); background: var(--text-primary); font-size: var(--text-heading); font-weight: 800; }
@@ -49,7 +55,7 @@ p, h1, h2, h3, small, strong { overflow-wrap: anywhere; }
 .eyebrow { margin: 0; color: var(--text-secondary); font-size: var(--text-xs); font-weight: 600; letter-spacing: .06em; }
 .accent-text { color: var(--accent-primary); }
 .account-area { display: flex; align-items: center; gap: var(--space-3); margin-left: auto; min-width: 0; }
-.account-name { max-width: 160px; font-size: var(--text-sm); }
+.account-name { min-width: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
 .auth-layout { max-width: 440px; margin: clamp(2rem, 8vw, 6rem) auto; }
 .panel, .ask-panel { border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--surface-secondary); box-shadow: var(--shadow); }
 .auth-panel { display: grid; gap: var(--space-5); padding: var(--space-8); }
@@ -68,14 +74,17 @@ textarea { min-height: 132px; resize: vertical; line-height: 1.65; }
 .button { min-height: 44px; border: 0; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-4); font-size: var(--text-sm); font-weight: 600; white-space: nowrap; }
 .button-primary { color: var(--surface-secondary); background: var(--accent-primary); }
 .button-primary:hover:not(:disabled) { background: var(--accent-hover); }
-.button-quiet { color: var(--text-secondary); background: transparent; }
-.button-quiet:hover:not(:disabled) { color: var(--text-primary); background: var(--border-subtle); }
+.button-primary:disabled { background: var(--border-subtle); }
+.button-quiet { border: 1px solid var(--border-default); color: var(--text-primary); background: var(--surface-secondary); }
+.button-quiet:hover:not(:disabled) { background: var(--border-subtle); }
+.button-quiet:disabled { border-color: var(--border-subtle); background: transparent; }
 .wide-button { width: 100%; }
 .form-note, .hint { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.5; }
 .message { margin: 0; border-radius: var(--radius-sm); padding: var(--space-3); font-size: var(--text-sm); }
 .error-message { color: var(--status-error); background: var(--error-surface); }
 .workspace { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: var(--space-12); padding-top: var(--space-12); align-items: start; }
-.sidebar { position: sticky; top: var(--space-6); display: flex; flex-direction: column; min-width: 0; }
+/* 侧栏高于视口时在自身内滚动；内边距抵消负外边距，给 3px 焦点环留出不被裁切的空间。 */
+.sidebar { position: sticky; top: var(--space-6); display: flex; flex-direction: column; min-width: 0; max-height: calc(100dvh - var(--space-12)); overflow-y: auto; scroll-padding-block: var(--space-3); margin: calc(-1 * var(--space-2)); padding: var(--space-2); }
 .step-number { color: var(--text-secondary); font-family: ui-monospace, Consolas, monospace; font-size: var(--text-xs); }
 .location-button { min-height: 48px; margin-top: var(--space-6); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--accent-primary); background: var(--surface-secondary); font-weight: 600; }
 .location-button:hover:not(:disabled) { background: var(--accent-surface); }
@@ -111,7 +120,7 @@ textarea { min-height: 132px; resize: vertical; line-height: 1.65; }
 .places-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
 .place-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); min-width: 0; padding: var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--surface-secondary); }
 .place-index { color: var(--accent-primary); font-family: ui-monospace, Consolas, monospace; font-size: var(--text-xs); }
-.place-card h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); line-height: 1.4; }
+.place-card h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); line-height: 1.4; text-wrap: balance; }
 .place-card p, .place-card small { display: block; margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
 .place-card small { margin-top: var(--space-2); }
 .result-empty { padding: var(--space-8) var(--space-3); color: var(--text-secondary); font-size: var(--text-sm); text-align: center; }
@@ -121,9 +130,10 @@ textarea { min-height: 132px; resize: vertical; line-height: 1.65; }
 @media (max-width: 820px) {
   .app-shell { padding: var(--space-5) var(--space-5) var(--space-8); }
   .workspace { grid-template-columns: 1fr; gap: var(--space-8); padding-top: var(--space-8); }
-  .sidebar { position: static; }
+  .sidebar { position: static; max-height: none; overflow: visible; margin: 0; padding: 0; }
 }
 @media (max-width: 520px) {
+  :root { --text-xs: .8125rem; --text-sm: .9375rem; --text-base: 1.0625rem; }
   .app-shell { padding: var(--space-4); }
   .topbar { padding-bottom: var(--space-5); flex-wrap: wrap; }
   .account-area { gap: var(--space-1); }

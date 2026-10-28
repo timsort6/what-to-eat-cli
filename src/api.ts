@@ -1,5 +1,7 @@
-import { ApiError, isRecord, messageFrom, parseAddresses, parseAuth, parseUser } from './protocol'
-import type { AuthData, ChatEvent, ChatRequest } from './protocol'
+import { ApiError, isRecord, messageFrom, parseAddress, parseAddresses, parseAuth, parseLocationCandidates, parseUser } from './protocol'
+import type { AuthData, ChatEvent, ChatRequest, CreateAddressRequest } from './protocol'
+import { parseLocationSearchInput } from './locationSearch'
+import type { LocationSearchInput } from './locationSearch'
 import { readSSE } from './sse'
 
 const tokenKey = 'food-agent-token'
@@ -63,6 +65,19 @@ export async function me(signal: AbortSignal) {
 
 export async function listAddresses(signal: AbortSignal) {
   return parseAddresses(await request('/addresses', { signal }))
+}
+
+export async function createAddress(input: CreateAddressRequest, signal: AbortSignal) {
+  return parseAddress(await request('/addresses', { method: 'POST', body: JSON.stringify(input), signal }))
+}
+
+export async function searchLocations(input: LocationSearchInput, signal: AbortSignal) {
+  const { query, city } = parseLocationSearchInput(input)
+  const params = new URLSearchParams({ query })
+  if (city) params.set('city', city)
+  const data = await request(`/locations/search?${params}`, { method: 'GET', signal })
+  signal.throwIfAborted()
+  return parseLocationCandidates(data)
 }
 
 export async function streamChat(payload: ChatRequest, onEvent: (event: ChatEvent) => void, signal: AbortSignal): Promise<void> {

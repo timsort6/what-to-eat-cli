@@ -7,15 +7,20 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "test": "node tests/check.mjs",
+    "test:markdown-browser": "node tests/markdown-browser.mjs",
+    "test:acceptance": "node tests/acceptance.mjs",
+    "test:acceptance-matrix": "node tests/acceptance-matrix.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "dompurify": "3.4.17",
+    "markdown-it": "15.0.3",
     "vue": "^3.5.13"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
+    "typescript": "^5.7.3",
     "vite": "^6.2.2",
-    "vue-tsc": "^2.2.8",
-    "typescript": "^5.7.3"
+    "vue-tsc": "^2.2.8"
   }
 }

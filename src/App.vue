@@ -49,7 +49,7 @@ onUnmounted(() => session.value.abort())
     <header class="topbar">
       <div class="brand-mark" aria-hidden="true">食</div>
       <div><p class="eyebrow">附近美食推荐</p><h1>食见</h1></div>
-      <div v-if="user" class="account-area"><span class="account-name">{{ user.username }}</span><button class="button button-quiet" type="button" @click="logout()">退出登录</button></div>
+      <div v-if="user" class="account-area"><span class="account-name" :title="user.username">{{ user.username }}</span><button class="button button-quiet" type="button" @click="logout()">退出登录</button></div>
     </header>
     <p v-if="restoring" class="message" role="status">正在恢复登录会话…</p>
     <AuthForm v-else-if="!user" :notice="notice" @authenticated="authenticated" />
